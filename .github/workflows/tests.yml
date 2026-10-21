@@ -1,30 +1,35 @@
-name: GenLayer Code Quality Check
+name: DomainRiskManager Protocol CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  security-and-unit-tests:
+    name: Run Protocol & Consensus Unit Tests
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.9"
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install Linter
-      run: |
-        python -m pip install --upgrade pip
-        pip install flake8
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest>=8.0.0
 
-    - name: Run Syntax & Quality Check
-      run: |
-        # Check for critical syntax errors
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+      - name: Verify Smart Contract Syntax
+        run: |
+          python -m py_compile DomainRiskManager.py test.py
+
+      - name: Execute Pytest Verification Suite
+        run: |
+          pytest test.py -v
