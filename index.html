@@ -1,429 +1,339 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DomainRiskManager | GenLayer dApp</title>
-    <style>
-        :root {
-            --bg-color: #0a0a0a;
-            --surface-color: #141414;
-            --surface-hover: #1f1f1f;
-            --border-color: #262626;
-            --neon-accent: #d4f938;
-            --text-primary: #ffffff;
-            --text-secondary: #a3a3a3;
-            --font-main: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body { 
-            background-color: #08080a;
-            background-image: 
-                radial-gradient(circle at 50% 0%, rgba(212, 249, 56, 0.08) 0%, transparent 45%),
-                radial-gradient(circle at 100% 40%, rgba(138, 43, 226, 0.06) 0%, transparent 40%),
-                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
-            background-attachment: fixed;
-            color: var(--text-primary); 
-            font-family: var(--font-main); 
-            line-height: 1.5; 
-            min-height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            overflow-x: hidden; 
-            scroll-behavior: smooth; 
-        }
-
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; width: 100%; }
-
-        /* Navbar */
-        nav { display: flex; justify-content: space-between; align-items: center; padding: 32px 0; }
-        .logo { display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 700; letter-spacing: -0.04em; }
-        .logo img { width: 36px; height: 36px; border-radius: 8px; }
-        .logo span { color: var(--neon-accent); }
-        .nav-links { display: none; gap: 40px; }
-        @media (min-width: 768px) { .nav-links { display: flex; } }
-        .nav-link { color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
-        .nav-link:hover { color: var(--text-primary); }
-
-        .connect-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 20px; border-radius: 24px; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; }
-        .connect-btn:hover { border-color: #404040; background: rgba(255,255,255,0.05); }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
-        .connected-dot { background-color: #4ade80; box-shadow: 0 0 8px rgba(74, 222, 128, 0.5); }
-
-        /* Hero */
-        .hero { display: grid; grid-template-columns: 1fr; gap: 64px; padding: 60px 0 80px; align-items: center; position: relative; }
-        @media (min-width: 992px) { .hero { grid-template-columns: 1fr 1fr; } }
-        .hero-content h1 { font-size: clamp(3rem, 5vw, 4.5rem); font-weight: 600; line-height: 1.1; letter-spacing: -0.04em; margin-bottom: 24px; }
-        .hero-content h1 .highlight { color: var(--neon-accent); }
-        .hero-content p { font-size: 1.125rem; color: var(--text-secondary); max-width: 400px; margin-bottom: 40px; }
-        .hero-btns { display: flex; gap: 16px; flex-wrap: wrap; }
-
-        .btn { text-decoration: none; padding: 14px 28px; border-radius: 30px; font-size: 15px; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; border: none; cursor: pointer; }
-        .btn-primary { background-color: var(--neon-accent); color: #000000; }
-        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-        .btn-secondary { background-color: var(--surface-color); color: var(--text-primary); border: 1px solid var(--border-color); }
-        .btn-secondary:hover { background-color: var(--surface-hover); }
-
-        /* 3D Isometric Graphic */
-        .hero-graphic { display: none; height: 420px; position: relative; align-items: center; justify-content: center; }
-        @media (min-width: 992px) { .hero-graphic { display: flex; } }
-        .iso-scene { position: relative; width: 340px; height: 340px; transform: rotateX(60deg) rotateZ(-45deg); transform-style: preserve-3d; }
-        .iso-grid { position: absolute; inset: -40px; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 14px; transform-style: preserve-3d; }
-        .iso-tile { background: #121214; border-radius: 6px; border: 1px solid #222226; box-shadow: inset 0 0 10px rgba(255,255,255,0.02); }
-        .iso-glow { position: absolute; width: 170px; height: 170px; top: 50%; left: 50%; transform: translate(-50%, -50%) translateZ(2px); background: radial-gradient(circle, rgba(212, 249, 56, 0.45) 0%, rgba(212, 249, 56, 0.15) 45%, transparent 70%); filter: blur(16px); pointer-events: none; }
-        .cube-3d { position: absolute; top: 50%; left: 50%; width: 140px; height: 140px; margin-left: -70px; margin-top: -70px; transform-style: preserve-3d; transform: translateZ(70px); }
-        .cube-face { position: absolute; width: 140px; height: 140px; box-sizing: border-box; border: 1px solid rgba(255, 255, 255, 0.08); }
-        .cube-top { transform: translateZ(70px); background: linear-gradient(135deg, #2b2b2f 0%, #1a1a1c 100%); border-top: 1px solid rgba(255, 255, 255, 0.2); border-left: 1px solid rgba(255, 255, 255, 0.2); }
-        .cube-front { transform: rotateX(-90deg) translateZ(70px); background: linear-gradient(180deg, #161618 0%, #0d0d0e 85%, rgba(212, 249, 56, 0.18) 100%); }
-        .cube-right { transform: rotateY(90deg) translateZ(70px); background: linear-gradient(180deg, #202024 0%, #111113 85%, rgba(212, 249, 56, 0.22) 100%); }
-
-        /* Stats Bar */
-        .stats-bar { background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 24px; padding: 32px 40px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px; margin-bottom: 80px; }
-        @media (min-width: 768px) { .stats-bar { grid-template-columns: repeat(4, 1fr); gap: 16px; } }
-        .stat-item { display: flex; align-items: flex-start; gap: 16px; }
-        .stat-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(212, 249, 56, 0.03); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--neon-accent); }
-        .stat-icon svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-        .stat-content h4 { font-size: 1.5rem; font-weight: 600; margin-bottom: 4px; }
-        .stat-content p { font-size: 0.875rem; color: var(--text-secondary); }
-
-        /* Features Section */
-        .features { display: grid; grid-template-columns: 1fr; gap: 64px; padding-bottom: 80px; }
-        @media (min-width: 992px) { .features { grid-template-columns: 350px 1fr; } }
-        .features-header h2 { font-size: 2.25rem; font-weight: 600; line-height: 1.2; margin-bottom: 16px; }
-        .features-header p { color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 32px; }
-        .features-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
-        @media (min-width: 768px) { .features-grid { grid-template-columns: repeat(3, 1fr); } }
-        .feature-card { background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 20px; padding: 32px 24px; transition: background-color 0.2s; }
-        .feature-card:hover { background-color: var(--surface-hover); }
-        .feature-card .icon { width: 40px; height: 40px; border-radius: 8px; background: rgba(212, 249, 56, 0.05); border: 1px solid rgba(212, 249, 56, 0.1); color: var(--neon-accent); display: flex; align-items: center; justify-content: center; margin-bottom: 24px; }
-        .feature-card .icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-        .feature-card h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 12px; }
-        .feature-card p { font-size: 0.9rem; color: var(--text-secondary); }
-
-        /* Architecture Section */
-        .technical-details { padding-bottom: 100px; }
-        .tech-header { text-align: center; margin-bottom: 64px; }
-        .tech-header h2 { font-size: 2.25rem; font-weight: 600; margin-bottom: 16px; }
-        .tech-header p { color: var(--text-secondary); font-size: 1.1rem; }
-
-        .state-machine { background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 24px; padding: 48px 24px; overflow-x: auto; margin-bottom: 64px; }
-        .state-machine h3 { margin-bottom: 40px; text-align: center; font-size: 1.25rem; }
-        .pipeline { display: flex; flex-direction: column; align-items: center; gap: 24px; min-width: 700px; }
-        .state-node { padding: 16px 32px; border-radius: 12px; text-align: center; min-width: 200px; }
-        .node-queued { border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); font-weight: 500; }
-        .node-ai { border: 1px solid var(--neon-accent); background: rgba(212, 249, 56, 0.05); color: var(--neon-accent); font-weight: 600; box-shadow: 0 0 20px rgba(212, 249, 56, 0.1); }
-        .node-outcomes { display: flex; gap: 40px; justify-content: center; width: 100%; }
-        .node-safe { border: 1px solid #4ade80; color: #4ade80; background: rgba(74, 222, 128, 0.05); width: 180px; }
-        .node-manual { border: 1px solid #fbbf24; color: #fbbf24; background: rgba(251, 191, 36, 0.05); width: 180px; }
-        .node-denied { border: 1px solid #f87171; color: #f87171; background: rgba(248, 113, 113, 0.05); width: 180px; }
-        .node-steward { border: 1px dashed var(--border-color); color: var(--text-secondary); font-size: 14px; padding: 12px 32px; }
-        .arrow-down { color: var(--border-color); font-size: 24px; }
-
-        /* Dashboard dApp Section */
-        .dapp-header { text-align: center; margin-bottom: 48px; }
-        .dapp-header h2 { font-size: 2.25rem; font-weight: 600; margin-bottom: 16px; }
-        .contract-badge { display: inline-block; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 20px; font-family: monospace; font-size: 13px; color: var(--neon-accent); }
-
-        .dashboard { display: grid; grid-template-columns: 1fr; gap: 24px; padding-bottom: 80px; }
-        @media (min-width: 992px) { .dashboard { grid-template-columns: 1fr 1fr; } }
-
-        .panel { background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 20px; padding: 32px; position: relative; overflow: hidden; display: flex; flex-direction: column; }
-        .panel::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: var(--border-color); transition: background 0.3s; }
-        .panel:hover::before { background: var(--neon-accent); }
-        .panel h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
-
-        .input-group { margin-bottom: 16px; }
-        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .input-label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--text-secondary); }
-        input[type="text"], input[type="number"], select, textarea { width: 100%; background: #000; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 16px; color: #fff; font-family: var(--font-main); font-size: 14px; outline: none; transition: border-color 0.2s; }
-        input:focus, select:focus, textarea:focus { border-color: var(--neon-accent); }
-        textarea { resize: vertical; min-height: 80px; }
-
-        .panel-btn { width: 100%; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; background-color: var(--neon-accent); color: #000; margin-top: 8px; margin-bottom: 16px;}
-        .panel-btn:hover { opacity: 0.9; }
-        .panel-btn-sec { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-primary); }
-        .panel-btn-sec:hover { background-color: rgba(255,255,255,0.05); }
-        .inline-btn { margin-top: 0; margin-bottom: 0; }
-
-        .divider { height: 1px; background: var(--border-color); margin: 24px 0; }
-
-        .console-output { margin-top: auto; padding: 16px; border-radius: 8px; background: #000; border: 1px solid var(--border-color); font-family: monospace; font-size: 12px; color: var(--text-secondary); min-height: 60px; word-wrap: break-word; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
-        .status-success { color: #4ade80; }
-        .status-error { color: #f87171; }
-        .status-warn { color: #fbbf24; }
-
-        footer { border-top: 1px solid var(--border-color); padding: 40px 0; text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin-top: auto; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Domain Risk Manager — GenLayer AI Policy & Coexistence Console</title>
+  <link rel="icon" type="image/svg+xml" href="./logo.svg" />
+  <style>
+    :root {
+      --bg: #0b0f17;
+      --panel: #131b2e;
+      --panel-alt: #18233c;
+      --border: #263554;
+      --accent: #a3e635;
+      --accent-dim: #65a30d;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --ok: #22c55e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at top right, #172554, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+      line-height: 1.5;
+    }
+    .container { max-width: 1240px; margin: 0 auto; }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 24px;
+      margin-bottom: 20px;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand img { width: 48px; height: 48px; border-radius: 12px; }
+    .brand h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+    .brand p { font-size: 0.85rem; color: var(--muted); }
+    .badge {
+      display: inline-block;
+      background: rgba(163, 230, 53, 0.14);
+      color: var(--accent);
+      border: 1px solid rgba(163, 230, 53, 0.35);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .config-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto auto;
+      gap: 10px;
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    @media (max-width: 860px) {
+      .config-bar { grid-template-columns: 1fr; }
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .stat-card span { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; }
+    .stat-card strong { display: block; font-size: 1.5rem; margin-top: 4px; color: var(--accent); }
+    .grid-main {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card h2 {
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+    label { font-size: 0.8rem; color: var(--muted); font-weight: 500; display: block; margin-bottom: 4px; }
+    input, textarea, select {
+      width: 100%;
+      background: #090d16;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-family: inherit;
+    }
+    textarea { min-height: 84px; resize: vertical; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    button {
+      background: var(--accent);
+      color: #0b0f17;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 15px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.9; }
+    button.secondary {
+      background: #1e293b;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    button.warn { background: var(--warn); color: #0b0f17; }
+    .sim-box {
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 0.83rem;
+    }
+    .risk-meter {
+      height: 8px;
+      background: #1e293b;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .risk-fill { height: 100%; width: 0%; background: var(--ok); transition: width 0.3s, background 0.3s; }
+    pre {
+      background: #070a12;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      overflow-x: auto;
+      max-height: 260px;
+      white-space: pre-wrap;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Navbar -->
-        <nav>
-            <div class="logo">
-                <img src="logo.svg" alt="Logo" style="display: none;">
-                DomainRisk<span>.</span>
-            </div>
-            <div class="nav-links">
-                <a href="#architecture" class="nav-link">Architecture</a>
-                <a href="#dapp" class="nav-link">dApp</a>
-                <a href="https://github.com/dorinalunar/domain-risk-dapp-v2" target="_blank" class="nav-link">GitHub</a>
-            </div>
-            <button id="connectBtn" class="connect-btn">
-                <span id="walletText">Connect Wallet</span>
-                <span id="statusDot" class="status-dot"></span>
-            </button>
-        </nav>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <img src="./logo.svg" alt="Logo" onerror="this.src='./mascot.png'" />
+        <div>
+          <h1>Domain Risk Manager <span class="badge">AI Policy Consensus v2.1</span></h1>
+          <p>Decentralized Agreement Coexistence & Conflict Adjudication on GenLayer</p>
+        </div>
+      </div>
+      <div class="row">
+        <button id="btnConnect">Connect Wallet</button>
+        <button id="btnRefreshStats" class="secondary">Sync Stats</button>
+      </div>
+    </header>
 
-        <!-- Hero Section -->
-        <main class="hero">
-            <div class="hero-content">
-                <h1>Evaluate today.<br><span class="highlight">Resolve</span> tomorrow.</h1>
-                <p>An autonomous Intelligent Smart Contract on GenLayer. Manage commitments, detect clashes, and enforce semantic rules.</p>
-                <div class="hero-btns">
-                    <a href="#dapp" class="btn btn-primary">Launch dApp <span>↓</span></a>
-                    <a href="#architecture" class="btn btn-secondary">Explore Architecture</a>
-                </div>
-            </div>
-            <div class="hero-graphic">
-                <div class="iso-scene">
-                    <div class="iso-grid">
-                        <div class="iso-tile"></div><div class="iso-tile"></div><div class="iso-tile"></div><div class="iso-tile"></div>
-                        <div class="iso-tile"></div><div class="iso-tile"></div><div class="iso-tile"></div><div class="iso-tile"></div>
-                        <div class="iso-tile"></div><div class="iso-tile"></div><div class="iso-tile"></div><div class="iso-tile"></div>
-                        <div class="iso-tile"></div><div class="iso-tile"></div><div class="iso-tile"></div><div class="iso-tile"></div>
-                    </div>
-                    <div class="iso-glow"></div>
-                    <div class="cube-3d">
-                        <div class="cube-face cube-top"></div>
-                        <div class="cube-face cube-front"></div>
-                        <div class="cube-face cube-right"></div>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <!-- Stats Bar -->
-        <section class="stats-bar">
-            <div class="stat-item">
-                <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></div>
-                <div class="stat-content"><h4>6</h4><p>Conflict Types</p></div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div>
-                <div class="stat-content"><h4>GenVM</h4><p>AI Consensus</p></div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
-                <div class="stat-content"><h4>py-genlayer</h4><p>SDK Integration</p></div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></div>
-                <div class="stat-content"><h4>1.5k</h4><p>Char Text Limit</p></div>
-            </div>
-        </section>
-
-        <!-- Features Section -->
-        <section class="features">
-            <div class="features-header">
-                <h2>Built for agents.</h2>
-                <p>Everything you need to secure decentralized commerce and commitments.</p>
-            </div>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="icon"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></div>
-                    <h3>Consensus</h3>
-                    <p>Leverages non-deterministic AI via run_nondet_unsafe to semantically analyze incoming agreements.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
-                    <h3>Govern</h3>
-                    <p>Robust multi-state lifecycle with whitelist permissions and global steward override capabilities.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></div>
-                    <h3>Integrate</h3>
-                    <p>Built-in IResolutionListener interface for seamless cross-contract event hooks and dApp syncing.</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- Architecture Section -->
-        <section class="technical-details" id="architecture">
-            <div class="tech-header">
-                <h2>Architecture & Logic</h2>
-                <p>Transparent state transitions and semantic rules engine.</p>
-            </div>
-            <!-- State Machine Diagram -->
-            <div class="state-machine">
-                <h3>Transaction Lifecycle</h3>
-                <div class="pipeline">
-                    <div class="state-node node-queued">📥 QUEUED <br><span style="font-size: 12px; color: var(--text-secondary);">Agreement Submitted</span></div>
-                    <div class="arrow-down">↓</div>
-                    <div class="state-node node-ai">🧠 GenVM AI Consensus <br><span style="font-size: 12px; font-weight: 400; font-family: monospace;">run_nondet_unsafe()</span></div>
-                    <div class="arrow-down">↓</div>
-                    <div class="node-outcomes">
-                        <div class="state-node node-safe">✅ LIVE<br><span style="font-size: 12px; font-weight: 400;">Outcome: Safe</span></div>
-                        <div class="state-node node-manual">⚠️ MANUAL_CHECK<br><span style="font-size: 12px; font-weight: 400;">Outcome: Unclear</span></div>
-                        <div class="state-node node-denied">❌ DENIED<br><span style="font-size: 12px; font-weight: 400;">Outcome: Clash</span></div>
-                    </div>
-                    <div class="arrow-down">↓</div>
-                    <div class="state-node node-steward">👑 Global Steward Override (Force execution)</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Interactive dApp Section -->
-        <section id="dapp">
-            <div class="dapp-header">
-                <h2>Agentic Command Center</h2>
-                <p style="color: var(--text-secondary); margin-bottom: 16px;">Execute on-chain transactions via GenLayer Studio Network (61999).</p>
-                <div class="contract-badge" id="contractAddr">0xBfD7843AF81097Faec3Ce05A86B7E106BB78024e</div>
-            </div>
-
-            <div class="dashboard">
-                <!-- PANEL 1: Admin / Setup -->
-                <div class="panel">
-                    <h2>⚙️ 1. Setup & Admin</h2>
-                    <div class="input-group">
-                        <label class="input-label">Add Steward (Admin Only)</label>
-                        <div class="row-2">
-                            <input type="text" id="addStewardAcc" placeholder="Address 0x...">
-                            <button class="panel-btn panel-btn-sec inline-btn" onclick="addSteward()">Add Steward</button>
-                        </div>
-                    </div>
-
-                    <div class="divider"></div>
-                    <label class="input-label">Register Domain</label>
-                    <input type="text" id="regDomainName" placeholder="Domain Name (e.g. defi_q4)" style="margin-bottom: 8px;">
-                    <input type="text" id="regDomainOwner" placeholder="Owner Address (0x...)">
-                    <button class="panel-btn" onclick="registerDomain()">Register Domain</button>
-
-                    <div class="divider"></div>
-                    <label class="input-label">Configure Domain Risk</label>
-                    <input type="text" id="cfgDomain" placeholder="Domain Name" style="margin-bottom: 8px;">
-                    <div class="row-2">
-                        <select id="cfgStrict"><option value="true">Strict: True</option><option value="false">Strict: False</option></select>
-                        <select id="cfgMinor"><option value="true">Ignore Minor: True</option><option value="false">Ignore Minor: False</option></select>
-                    </div>
-                    <button class="panel-btn panel-btn-sec" onclick="configureDomainRisk()">Save Config</button>
-
-                    <div class="divider"></div>
-                    <label class="input-label">Set Whitelist</label>
-                    <input type="text" id="wlDomain" placeholder="Domain Name" style="margin-bottom: 8px;">
-                    <input type="text" id="wlAccount" placeholder="Address (0x...)" style="margin-bottom: 8px;">
-                    <select id="wlStatus" style="margin-bottom: 8px;"><option value="true">Allow</option><option value="false">Revoke</option></select>
-                    <button class="panel-btn panel-btn-sec" onclick="setWhitelist()">Update Whitelist</button>
-
-                    <div id="adminConsole" class="console-output">Awaiting input...</div>
-                </div>
-
-                <!-- PANEL 2: Submissions -->
-                <div class="panel">
-                    <h2>📥 2. Submission Cycle</h2>
-                    <label class="input-label">Submit Agreement</label>
-                    <input type="text" id="subDomain" placeholder="Target Domain" style="margin-bottom: 8px;">
-                    <textarea id="subBody" placeholder="Body Text (Max 1500 chars)" style="margin-bottom: 8px;"></textarea>
-                    <input type="text" id="subBg" placeholder="Background Info (Optional)" style="margin-bottom: 8px;">
-                    <input type="text" id="subHook" value="0x0000000000000000000000000000000000000000">
-                    <button class="panel-btn" onclick="submitAgreement()">Queue Submission</button>
-
-                    <div class="divider"></div>
-                    <div class="input-group">
-                        <label class="input-label">Manage Submissions (Revoke / Reload / Archive)</label>
-                        <input type="number" id="manageId" placeholder="Submission ID" style="margin-bottom: 8px;">
-                        <input type="text" id="archiveCause" placeholder="Archive Cause (Only for Archive action)" style="margin-bottom: 8px;">
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                            <button class="panel-btn panel-btn-sec inline-btn" onclick="manageSubmission('reload')">Reload</button>
-                            <button class="panel-btn panel-btn-sec inline-btn" style="border-color: #f87171; color: #f87171;" onclick="manageSubmission('revoke')">Revoke</button>
-                            <button class="panel-btn panel-btn-sec inline-btn" style="border-color: #fbbf24; color: #fbbf24;" onclick="manageSubmission('archive')">Archive</button>
-                        </div>
-                    </div>
-                    <div id="subConsole" class="console-output">Awaiting submission...</div>
-                </div>
-
-                <!-- PANEL 3: AI & Execution -->
-                <div class="panel">
-                    <h2>🧠 3. AI & Execution</h2>
-                    <label class="input-label">Evaluate Submission (GenVM)</label>
-                    <div class="row-2">
-                        <input type="number" id="evalId" placeholder="Submission ID">
-                        <button class="panel-btn inline-btn" onclick="evaluateSubmission()">Run AI Check</button>
-                    </div>
-
-                    <div class="divider"></div>
-                    <label class="input-label">Evaluate Batch (Comma separated IDs)</label>
-                    <div class="row-2">
-                        <input type="text" id="batchIds" placeholder="e.g. 1, 2, 3">
-                        <button class="panel-btn panel-btn-sec inline-btn" onclick="executeBatchEval()">Run Batch</button>
-                    </div>
-
-                    <div class="divider"></div>
-                    <label class="input-label">Steward Override (Force Outcome)</label>
-                    <input type="number" id="overId" placeholder="Submission ID" style="margin-bottom: 8px;">
-                    <div class="row-2" style="margin-bottom: 8px;">
-                        <select id="overOutcome"><option value="SAFE">SAFE (Live)</option><option value="CLASH">CLASH (Denied)</option></select>
-                        <input type="text" id="overRationale" placeholder="Rationale">
-                    </div>
-                    <button class="panel-btn panel-btn-sec" onclick="overrideJudgement()">Force Override</button>
-
-                    <div class="divider"></div>
-                    <label class="input-label">Trigger Cross-Contract Hook</label>
-                    <div class="row-2">
-                        <input type="number" id="hookId" placeholder="Submission ID">
-                        <button class="panel-btn panel-btn-sec inline-btn" onclick="triggerHook()">Fire Hook</button>
-                    </div>
-                    <div id="evalConsole" class="console-output">Awaiting execution...</div>
-                </div>
-
-                <!-- PANEL 4: Read State (Views) -->
-                <div class="panel">
-                    <h2>🔍 4. Explorer (Views)</h2>
-                    <label class="input-label">Submission Data (ID required)</label>
-                    <div class="row-2" style="margin-bottom: 8px;">
-                        <input type="number" id="viewId" placeholder="Submission ID">
-                        <button class="panel-btn panel-btn-sec inline-btn" onclick="fetchSubmissionData('get_submission')">State</button>
-                    </div>
-                    <div class="row-2">
-                        <button class="panel-btn panel-btn-sec inline-btn" onclick="fetchSubmissionData('get_content')">Content Text</button>
-                        <button class="panel-btn panel-btn-sec inline-btn" onclick="fetchSubmissionData('get_judgement')">AI Judgement</button>
-                    </div>
-
-                    <div class="divider"></div>
-                    <label class="input-label">Get Specific Issue (ID & Issue Index required)</label>
-                    <div class="row-2">
-                        <input type="number" id="issueIdx" placeholder="Issue Index (e.g. 0)">
-                        <button class="panel-btn panel-btn-sec inline-btn" onclick="getIssue()">Fetch Issue</button>
-                    </div>
-
-                    <div class="divider"></div>
-                    <label class="input-label">Get Domain State</label>
-                    <input type="text" id="dsActor" placeholder="Actor Address 0x..." style="margin-bottom: 8px;">
-                    <div class="row-2">
-                        <input type="text" id="dsDomain" placeholder="Domain Name">
-                        <button class="panel-btn panel-btn-sec inline-btn" onclick="getDomainState()">Fetch Domain</button>
-                    </div>
-
-                    <div class="divider"></div>
-                    <div class="row-2">
-                        <button class="panel-btn panel-btn-sec inline-btn" onclick="getEvent()">Read Event log</button>
-                        <button class="panel-btn panel-btn-sec inline-btn" onclick="getStats()">Global Stats</button>
-                    </div>
-                    <input type="number" id="eventIdx" placeholder="Event Index (e.g. 0)" style="margin-top: 8px; width: 50%;">
-                    <div id="viewConsole" class="console-output">Output will appear here...</div>
-                </div>
-            </div>
-        </section>
-
-        <footer>
-            <p>© 2026 DomainRiskManager. Built on GenLayer.</p>
-        </footer>
+    <div class="config-bar">
+      <div>
+        <label>Contract Address (Studio Network)</label>
+        <input id="inputContractAddr" type="text" placeholder="0x..." />
+      </div>
+      <div>
+        <label>GenLayer Studio RPC Endpoint</label>
+        <input id="inputRpcUrl" type="text" value="https://studio.genlayer.com/api" />
+      </div>
+      <div style="padding-top:18px;">
+        <button id="btnSaveConfig" class="secondary">Save Endpoint</button>
+      </div>
+      <div style="padding-top:18px;">
+        <span id="walletStatus" class="badge">Wallet: Not Connected</span>
+      </div>
     </div>
 
-    <script type="module" src="./main.js"></script>
+    <section class="stats-grid">
+      <div class="stat-card"><span>Next Tracker ID</span><strong id="statTracker">1</strong></div>
+      <div class="stat-card"><span>Active (LIVE)</span><strong id="statLive">0</strong></div>
+      <div class="stat-card"><span>Denied (CLASH)</span><strong id="statDenied">0</strong></div>
+      <div class="stat-card"><span>Manual Check</span><strong id="statManual">0</strong></div>
+      <div class="stat-card"><span>Archived</span><strong id="statArchived">0</strong></div>
+      <div class="stat-card"><span>Events Logged</span><strong id="statEvents">0</strong></div>
+    </section>
+
+    <div class="grid-main">
+      <!-- NEW MILESTONE FEATURE: PRE-FLIGHT SIMULATOR -->
+      <div class="card">
+        <h2>
+          <span>1. Pre-Flight Risk Simulator (Local Dry-Run)</span>
+          <span class="badge">New Feature</span>
+        </h2>
+        <div>
+          <label>Target Domain (max 100 chars, a-z, 0-9, ._-)</label>
+          <input id="simDomain" type="text" value="defi.treasury" />
+        </div>
+        <div>
+          <label>Candidate Agreement Body (max 1500 chars)</label>
+          <textarea id="simBody" placeholder="Enter agreement terms to scan for exclusivity, asset locks, or schedule clashes..."></textarea>
+        </div>
+        <div>
+          <label>Background Info (max 800 chars)</label>
+          <input id="simBg" type="text" placeholder="Optional context or counterparty details..." />
+        </div>
+        <div class="row">
+          <button id="btnRunSimulation">Run Pre-Flight Check</button>
+          <button id="btnCopyToSubmit" class="secondary">Copy to Submitter</button>
+          <button id="btnExportAudit" class="secondary">Export Audit JSON</button>
+        </div>
+        <div class="sim-box">
+          <div class="row" style="justify-content:space-between;">
+            <strong id="simVerdict">Ready for local policy scan</strong>
+            <span id="simScoreText">Risk Score: 0/100</span>
+          </div>
+          <div class="risk-meter"><div id="simRiskBar" class="risk-fill"></div></div>
+          <div id="simDetails" style="color:var(--muted);">Validates length constraints, domain syntax, and scans for MONOPOLY, ASSET_CLASH, SCHEDULE_CLASH, DUTY_BREACH, and POWER_CLASH triggers prior to gas spend.</div>
+        </div>
+      </div>
+
+      <!-- SUBMIT & EVALUATE -->
+      <div class="card">
+        <h2><span>2. Submit & Evaluate Agreement</span></h2>
+        <div>
+          <label>Domain</label>
+          <input id="subDomain" type="text" value="defi.treasury" />
+        </div>
+        <div>
+          <label>Agreement Text</label>
+          <textarea id="subBody" placeholder="Full commitment text..."></textarea>
+        </div>
+        <div>
+          <label>Background Context</label>
+          <input id="subBg" type="text" placeholder="Context notes..." />
+        </div>
+        <div>
+          <label>Resolution Listener Hook Address</label>
+          <input id="subHook" type="text" value="0x0000000000000000000000000000000000000000" />
+        </div>
+        <div class="row">
+          <button id="btnSubmitAgreement">Submit Agreement</button>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;" />
+        <div>
+          <label>Submission UID for Lifecycle Action</label>
+          <input id="evalUid" type="number" value="1" min="1" />
+        </div>
+        <div class="row">
+          <button id="btnEvaluate">AI Evaluate</button>
+          <button id="btnReload" class="secondary">Reload Sync</button>
+          <button id="btnRevoke" class="secondary">Revoke</button>
+          <button id="btnTriggerHook" class="secondary">Trigger Hook</button>
+        </div>
+      </div>
+
+      <!-- DOMAIN & STEWARD GOVERNANCE -->
+      <div class="card">
+        <h2><span>3. Domain & Steward Governance</span></h2>
+        <div>
+          <label>Domain Name</label>
+          <input id="govDomain" type="text" value="defi.treasury" />
+        </div>
+        <div>
+          <label>Target Account (Owner / Whitelist / Steward)</label>
+          <input id="govAccount" type="text" placeholder="0x..." />
+        </div>
+        <div class="row">
+          <button id="btnRegisterDomain">Register Domain</button>
+          <button id="btnWhitelistAllow" class="secondary">Whitelist +</button>
+          <button id="btnWhitelistRevoke" class="secondary">Whitelist -</button>
+          <button id="btnAddSteward" class="secondary">Add Steward</button>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;" />
+        <div class="row">
+          <label><input id="chkStrict" type="checkbox" style="width:auto;" /> Strict Mode</label>
+          <label><input id="chkIgnoreMinor" type="checkbox" style="width:auto;" /> Ignore Minor</label>
+          <button id="btnSaveRiskConfig" class="secondary">Update Risk Config</button>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;" />
+        <div>
+          <label>Steward Override / Archive (UID, Outcome SAFE/CLASH, Rationale)</label>
+          <div class="row">
+            <input id="ovrUid" type="number" value="1" style="width:80px;" />
+            <select id="ovrOutcome" style="width:120px;">
+              <option value="SAFE">SAFE</option>
+              <option value="CLASH">CLASH</option>
+            </select>
+            <input id="ovrRationale" type="text" placeholder="Override or archive rationale..." style="flex:1;" />
+          </div>
+        </div>
+        <div class="row">
+          <button id="btnOverride" class="warn">Steward Override</button>
+          <button id="btnArchive" class="secondary">Archive LIVE Record</button>
+        </div>
+      </div>
+
+      <!-- STATE INSPECTOR -->
+      <div class="card">
+        <h2><span>4. On-Chain Inspector & Audit Console</span></h2>
+        <div class="row">
+          <input id="inspUid" type="number" value="1" min="1" style="width:110px;" />
+          <button id="btnInspectSub" class="secondary">Get Submission</button>
+          <button id="btnInspectContent" class="secondary">Get Content</button>
+          <button id="btnInspectJudge" class="secondary">Get Judgement</button>
+        </div>
+        <div class="row">
+          <input id="inspDomain" type="text" value="defi.treasury" style="flex:1;" />
+          <button id="btnInspectDomain" class="secondary">Domain State</button>
+        </div>
+        <pre id="consoleOutput">// Ready. Connect wallet or run a Pre-Flight Simulation.</pre>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="./main.js"></script>
 </body>
 </html>
