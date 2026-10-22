@@ -1,243 +1,428 @@
-import { createClient } from "https://esm.sh/genlayer-js";
-import { studionet } from "https://esm.sh/genlayer-js/chains";
+// ============================================================================
+// Domain Risk Manager — Frontend Controller & Pre-Flight Policy Analyzer
+// Compatible with GenLayer Studio Network deployment
+// ============================================================================
 
-const CONTRACT_ADDRESS = "0xBfD7843AF81097Faec3Ce05A86B7E106BB78024e";
-const STUDIO_CHAIN_ID_HEX = '0xf22f';
-const studioChainParams = {
-    chainId: STUDIO_CHAIN_ID_HEX,
-    chainName: 'GenLayer Studio',
-    nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
-    rpcUrls: ['https://studio.genlayer.com/api']
+const DEFAULT_CONTRACT_ADDRESS = localStorage.getItem("drm_contract_addr") || "0xBfD7843AF81097Faec3Ce05A86B7E106BB78024e";
+const DEFAULT_RPC_URL = localStorage.getItem("drm_rpc_url") || "https://studio.genlayer.com/api";
+
+const LIMITS = {
+  DOMAIN: 100,
+  BODY: 1500,
+  BG: 800,
+  RATIONALE: 600,
 };
 
-let userAccount = null;
+const RISK_PATTERNS = [
+  { type: "MONOPOLY", weight: 35, keywords: ["exclusive", "sole provider", "monopoly", "only party", "single-source", "prohibit others"] },
+  { type: "ASSET_CLASH", weight: 30, keywords: ["entire balance", "100% of treasury", "full collateral", "pledge all", "transfer all funds"] },
+  { type: "SCHEDULE_CLASH", weight: 20, keywords: ["24/7", "simultaneous", "exclusive window", "at all times", "immediate lock"] },
+  { type: "DUTY_BREACH", weight: 25, keywords: ["override fiduciary", "waive liability", "bypass audit", "ignore compliance"] },
+  { type: "POWER_CLASH", weight: 30, keywords: ["unilateral veto", "sole authority", "irrevocable control", "supersede all"] },
+];
 
-const readClient = createClient({ chain: studionet });
+let connectedAccount = null;
+let lastAuditReport = null;
 
-window.logToConsole = function(consoleId, msg, type = 'normal') {
-    const el = document.getElementById(consoleId);
-    if (!el) return;
-    el.innerHTML = msg.replace(/\n/g, '<br>');
-    el.className = 'console-output';
-    if (type === 'error') el.classList.add('status-error');
-    else if (type === 'success') el.classList.add('status-success');
-    else if (type === 'warn') el.classList.add('status-warn');
-    el.scrollTop = el.scrollHeight;
-};
+// Initialize inputs
+const elContract = document.getElementById("inputContractAddr");
+const elRpc = document.getElementById("inputRpcUrl");
+const elConsole = document.getElementById("consoleOutput");
 
-async function switchNetwork() {
-    if (!window.ethereum) return;
-    try {
-        await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: STUDIO_CHAIN_ID_HEX }]
-        });
-    } catch (switchError) {
-        if (switchError.code === 4902) {
-            await window.ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [studioChainParams]
-            });
-        } else {
-            throw switchError;
-        }
-    }
+if (elContract) elContract.value = DEFAULT_CONTRACT_ADDRESS;
+if (elRpc) elRpc.value = DEFAULT_RPC_URL;
+
+function logOutput(title, payload) {
+  const timestamp = new Date().toISOString();
+  const formatted = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+  if (elConsole) {
+    elConsole.textContent = `[${timestamp}] ${title}\n${formatted}`;
+  }
 }
 
-async function connectWallet() {
-    if (!window.ethereum) {
-        alert("Please install MetaMask!");
-        return null;
+// ============================================================================
+// 1. LOCAL PRE-FLIGHT RISK SIMULATOR (NEW MILESTONE FEATURE)
+// ============================================================================
+
+export function analyzeCandidateLocally(domain, bodyText, bgInfo) {
+  const cleanDomain = (domain || "").trim().toLowerCase();
+  const cleanBody = (bodyText || "").trim();
+  const cleanBg = (bgInfo || "").trim();
+
+  const validationErrors = [];
+  if (!cleanDomain || cleanDomain.length > LIMITS.DOMAIN) {
+    validationErrors.push(`Invalid domain length (1..${LIMITS.DOMAIN}).`);
+  }
+  if (!/^[a-z0-9._-]+$/.test(cleanDomain)) {
+    validationErrors.push("Domain contains illegal characters (allowed: a-z, 0-9, ., _, -).");
+  }
+  if (!cleanBody || cleanBody.length > LIMITS.BODY) {
+    validationErrors.push(`Body text length must be between 1 and ${LIMITS.BODY} chars (current: ${cleanBody.length}).`);
+  }
+  if (cleanBg.length > LIMITS.BG) {
+    validationErrors.push(`Background info exceeds ${LIMITS.BG} chars (will be auto-trimmed on-chain).`);
+  }
+
+  const detectedFlags = [];
+  let score = 0;
+  const combined = `${cleanBody} ${cleanBg}`.toLowerCase();
+
+  for (const rule of RISK_PATTERNS) {
+    const matched = rule.keywords.filter((kw) => combined.includes(kw));
+    if (matched.length > 0) {
+      score += rule.weight;
+      detectedFlags.push({
+        type: rule.type,
+        level: rule.weight >= 30 ? "CRITICAL" : "MINOR",
+        matchedKeywords: matched,
+      });
     }
-    try {
-        await switchNetwork();
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        userAccount = accounts[0];
+  }
 
-        const walletText = document.getElementById('walletText');
-        if (walletText) walletText.innerText = userAccount.slice(0, 6) + "..." + userAccount.slice(-4);
+  if (validationErrors.length > 0) score = 100;
+  score = Math.min(100, score);
 
-        const statusDot = document.getElementById('statusDot');
-        if (statusDot) {
-            statusDot.classList.add('connected-dot');
-            statusDot.style.backgroundColor = '#4ade80';
-        }
+  const predictedOutcome =
+    validationErrors.length > 0
+      ? "HALT_REJECT"
+      : score >= 60
+      ? "LIKELY_CLASH"
+      : score >= 25
+      ? "MANUAL_CHECK_UNCLEAR"
+      : "LIKELY_SAFE";
 
-        console.log("Wallet connected:", userAccount);
-        return userAccount;
-    } catch (error) {
-        console.error("Connection error:", error);
-        return null;
-    }
+  return {
+    timestamp: new Date().toISOString(),
+    domain: cleanDomain,
+    lengths: { body: cleanBody.length, bg: cleanBg.length },
+    validationErrors,
+    predictedOutcome,
+    riskScore: score,
+    detectedFlags,
+  };
 }
 
-document.getElementById('connectBtn')?.addEventListener('click', connectWallet);
+document.getElementById("btnRunSimulation")?.addEventListener("click", () => {
+  const d = document.getElementById("simDomain").value;
+  const b = document.getElementById("simBody").value;
+  const bg = document.getElementById("simBg").value;
 
-window.executeTx = async function(functionName, args = [], consoleId = 'adminConsole') {
-    if (!userAccount) {
-        const connected = await connectWallet();
-        if (!connected) {
-            return window.logToConsole(consoleId, "Error: Connect wallet first.", "error");
-        }
+  const report = analyzeCandidateLocally(d, b, bg);
+  lastAuditReport = report;
+
+  const bar = document.getElementById("simRiskBar");
+  const verdict = document.getElementById("simVerdict");
+  const scoreTxt = document.getElementById("simScoreText");
+  const details = document.getElementById("simDetails");
+
+  bar.style.width = `${report.riskScore}%`;
+  bar.style.background =
+    report.riskScore >= 60 ? "#ef4444" : report.riskScore >= 25 ? "#f59e0b" : "#22c55e";
+
+  verdict.textContent = `Verdict: ${report.predictedOutcome}`;
+  scoreTxt.textContent = `Risk Score: ${report.riskScore}/100`;
+
+  if (report.validationErrors.length > 0) {
+    details.textContent = `Validation Errors: ${report.validationErrors.join(" ")}`;
+  } else if (report.detectedFlags.length > 0) {
+    details.textContent = `Detected Risk Categories: ${report.detectedFlags
+      .map((f) => `${f.type} (${f.level}:${f.matchedKeywords.join(", ")})`)
+      .join(" | ")}`;
+  } else {
+    details.textContent = "All length and character guards passed. No exclusivity or asset clash triggers detected.";
+  }
+
+  logOutput("PRE-FLIGHT SIMULATION REPORT", report);
+});
+
+document.getElementById("btnCopyToSubmit")?.addEventListener("click", () => {
+  document.getElementById("subDomain").value = document.getElementById("simDomain").value;
+  document.getElementById("subBody").value = document.getElementById("simBody").value;
+  document.getElementById("subBg").value = document.getElementById("simBg").value;
+  logOutput("COPIED", "Candidate fields copied to On-Chain Submitter.");
+});
+
+document.getElementById("btnExportAudit")?.addEventListener("click", () => {
+  const payload = lastAuditReport || {
+    note: "No simulation run yet",
+    contract: elContract?.value,
+    exportedAt: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `domain-risk-audit-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ============================================================================
+// 2. JSON-RPC INTERACTION HELPERS (GENLAYER STUDIO NETWORK)
+// ============================================================================
+
+async function rpcCall(method, params = []) {
+  const rpcUrl = elRpc?.value.trim() || DEFAULT_RPC_URL;
+  const response = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: Date.now(),
+      method,
+      params,
+    }),
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message || "RPC Error");
+  return data.result;
+}
+
+async function callContractView(functionName, args = []) {
+  const contractAddress = elContract?.value.trim();
+  if (!contractAddress || contractAddress === "0x0000000000000000000000000000000000000000") {
+    throw new Error("Please set a valid Contract Address in the top bar.");
+  }
+  const res = await rpcCall("gen_call", [
+    {
+      to: contractAddress,
+      from: connectedAccount || "0x0000000000000000000000000000000000000000",
+      method: functionName,
+      args,
+    },
+  ]);
+  return typeof res === "string" && res.startsWith("{") ? JSON.parse(res) : res;
+}
+
+async function sendContractWrite(functionName, args = []) {
+  const contractAddress = elContract?.value.trim();
+  if (!contractAddress || contractAddress === "0x0000000000000000000000000000000000000000") {
+    throw new Error("Please set a valid Contract Address in the top bar.");
+  }
+  if (!window.ethereum) {
+    throw new Error("MetaMask or Web3 provider not detected.");
+  }
+  if (!connectedAccount) {
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    connectedAccount = accounts[0];
+  }
+  logOutput(`TX PENDING: ${functionName}`, { contractAddress, args });
+  const txRes = await rpcCall("gen_sendTransaction", [
+    {
+      from: connectedAccount,
+      to: contractAddress,
+      method: functionName,
+      args,
+    },
+  ]);
+  logOutput(`TX SUBMITTED: ${functionName}`, txRes);
+  setTimeout(() => syncProtocolStats(), 2500);
+  return txRes;
+}
+
+export async function syncProtocolStats() {
+  try {
+    const data = await callContractView("stats", []);
+    const parsed = typeof data === "string" ? JSON.parse(data) : data;
+    if (parsed && typeof parsed === "object") {
+      document.getElementById("statTracker").textContent = parsed.global_tracker_id ?? "1";
+      document.getElementById("statLive").textContent = parsed.count_live ?? "0";
+      document.getElementById("statDenied").textContent = parsed.count_denied ?? "0";
+      document.getElementById("statManual").textContent = parsed.count_manual ?? "0";
+      document.getElementById("statArchived").textContent = parsed.count_archived ?? "0";
+      document.getElementById("statEvents").textContent = parsed.event_counter ?? "0";
     }
+  } catch (_err) {
+    // Silent catch during background sync
+  }
+}
 
-    try {
-        window.logToConsole(consoleId, `Preparing ${functionName}...\nPlease confirm in MetaMask.`, "warn");
-        await switchNetwork();
+// ============================================================================
+// 3. UI EVENT BINDINGS
+// ============================================================================
 
-        const client = createClient({ 
-            chain: studionet, 
-            provider: window.ethereum, 
-            account: userAccount 
-        });
+document.getElementById("btnSaveConfig")?.addEventListener("click", () => {
+  localStorage.setItem("drm_contract_addr", elContract.value.trim());
+  localStorage.setItem("drm_rpc_url", elRpc.value.trim());
+  logOutput("CONFIG SAVED", { contract: elContract.value.trim(), rpc: elRpc.value.trim() });
+  syncProtocolStats();
+});
 
-        const tx = await client.writeContract({
-            address: CONTRACT_ADDRESS,
-            functionName: functionName,
-            args: args,
-            value: 0n 
-        });
+document.getElementById("btnConnect")?.addEventListener("click", async () => {
+  try {
+    if (!window.ethereum) throw new Error("Install MetaMask to connect.");
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    connectedAccount = accounts[0];
+    document.getElementById("walletStatus").textContent = `Wallet: ${connectedAccount.slice(0, 6)}...${connectedAccount.slice(-4)}`;
+    logOutput("WALLET CONNECTED", { account: connectedAccount });
+    syncProtocolStats();
+  } catch (e) {
+    logOutput("WALLET ERROR", e.message);
+  }
+});
 
-        const hash = typeof tx === "string" ? tx : (tx.txId || tx.hash);
-        window.logToConsole(consoleId, `Transaction sent!\nMethod: ${functionName}\nHash: ${hash}`, "success");
-    } catch (error) {
-        console.error("Execution error:", error);
-        window.logToConsole(consoleId, `Failed: ${error.shortMessage || error.message || 'Transaction rejected'}`, "error");
-    }
-};
+document.getElementById("btnRefreshStats")?.addEventListener("click", () => syncProtocolStats());
 
-window.readData = async function(functionName, args = [], consoleId = 'viewConsole') {
-    try {
-        window.logToConsole(consoleId, `Fetching data from ${functionName}...`, "normal");
+document.getElementById("btnSubmitAgreement")?.addEventListener("click", async () => {
+  try {
+    await sendContractWrite("submit_agreement", [
+      document.getElementById("subDomain").value,
+      document.getElementById("subBody").value,
+      document.getElementById("subBg").value,
+      document.getElementById("subHook").value,
+    ]);
+  } catch (e) {
+    logOutput("SUBMIT ERROR", e.message);
+  }
+});
 
-        const result = await readClient.readContract({
-            address: CONTRACT_ADDRESS,
-            functionName: functionName,
-            args: args
-        });
+document.getElementById("btnEvaluate")?.addEventListener("click", async () => {
+  try {
+    await sendContractWrite("evaluate_submission", [Number(document.getElementById("evalUid").value)]);
+  } catch (e) {
+    logOutput("EVALUATE ERROR", e.message);
+  }
+});
 
-        let displayStr = result;
-        try {
-            displayStr = JSON.stringify(typeof result === 'string' ? JSON.parse(result) : result, null, 2);
-        } catch (e) {}
+document.getElementById("btnReload")?.addEventListener("click", async () => {
+  try {
+    await sendContractWrite("reload_submission", [Number(document.getElementById("evalUid").value)]);
+  } catch (e) {
+    logOutput("RELOAD ERROR", e.message);
+  }
+});
 
-        window.logToConsole(consoleId, `Result:\n${displayStr}`, "success");
-    } catch (error) {
-        console.error("Read error:", error);
-        window.logToConsole(consoleId, `Error: ${error.shortMessage || error.message || 'Execution reverted'}`, "warn");
-    }
-};
+document.getElementById("btnRevoke")?.addEventListener("click", async () => {
+  try {
+    await sendContractWrite("revoke_submission", [Number(document.getElementById("evalUid").value)]);
+  } catch (e) {
+    logOutput("REVOKE ERROR", e.message);
+  }
+});
 
-// --- Panel 1: Setup & Admin Handlers ---
-window.addSteward = function() {
-    const acc = document.getElementById('addStewardAcc')?.value.trim();
-    if (!acc) return window.logToConsole('adminConsole', 'Error: Steward address required.', 'error');
-    window.executeTx('add_steward', [acc], 'adminConsole');
-};
+document.getElementById("btnTriggerHook")?.addEventListener("click", async () => {
+  try {
+    await sendContractWrite("trigger_hook", [Number(document.getElementById("evalUid").value)]);
+  } catch (e) {
+    logOutput("HOOK ERROR", e.message);
+  }
+});
 
-window.registerDomain = function() {
-    const domain = document.getElementById('regDomainName')?.value.trim();
-    const owner = document.getElementById('regDomainOwner')?.value.trim();
-    if (!domain || !owner) return window.logToConsole('adminConsole', 'Error: Domain and Owner address required.', 'error');
-    window.executeTx('register_domain', [domain, owner], 'adminConsole');
-};
+document.getElementById("btnRegisterDomain")?.addEventListener("click", async () => {
+  try {
+    await sendContractWrite("register_domain", [
+      document.getElementById("govDomain").value,
+      document.getElementById("govAccount").value || connectedAccount,
+    ]);
+  } catch (e) {
+    logOutput("REGISTER DOMAIN ERROR", e.message);
+  }
+});
 
-window.configureDomainRisk = function() {
-    const domain = document.getElementById('cfgDomain')?.value.trim();
-    const strict = document.getElementById('cfgStrict')?.value === 'true';
-    const minor = document.getElementById('cfgMinor')?.value === 'true';
-    if (!domain) return window.logToConsole('adminConsole', 'Error: Domain required.', 'error');
-    window.executeTx('configure_domain_risk', [domain, strict, minor], 'adminConsole');
-};
+document.getElementById("btnWhitelistAllow")?.addEventListener("click", async () => {
+  try {
+    await sendContractWrite("set_whitelist", [
+      document.getElementById("govDomain").value,
+      document.getElementById("govAccount").value,
+      true,
+    ]);
+  } catch (e) {
+    logOutput("WHITELIST ERROR", e.message);
+  }
+});
 
-window.setWhitelist = function() {
-    const domain = document.getElementById('wlDomain')?.value.trim();
-    const target = document.getElementById('wlAccount')?.value.trim();
-    const status = document.getElementById('wlStatus')?.value === 'true';
-    if (!domain || !target) return window.logToConsole('adminConsole', 'Error: Domain and Target address required.', 'error');
-    window.executeTx('set_whitelist', [domain, target, status], 'adminConsole');
-};
+document.getElementById("btnWhitelistRevoke")?.addEventListener("click", async () => {
+  try {
+    await sendContractWrite("set_whitelist", [
+      document.getElementById("govDomain").value,
+      document.getElementById("govAccount").value,
+      false,
+    ]);
+  } catch (e) {
+    logOutput("WHITELIST ERROR", e.message);
+  }
+});
 
-// --- Panel 2: Submissions ---
-window.submitAgreement = function() {
-    const domain = document.getElementById('subDomain')?.value.trim();
-    const body = document.getElementById('subBody')?.value.trim();
-    const bg = document.getElementById('subBg')?.value.trim();
-    const hook = document.getElementById('subHook')?.value.trim() || "0x0000000000000000000000000000000000000000";
-    if (!domain || !body) return window.logToConsole('subConsole', 'Error: Domain and Agreement text required.', 'error');
-    window.executeTx('submit_agreement', [domain, body, bg, hook], 'subConsole');
-};
+document.getElementById("btnAddSteward")?.addEventListener("click", async () => {
+  try {
+    await sendContractWrite("add_steward", [document.getElementById("govAccount").value]);
+  } catch (e) {
+    logOutput("ADD STEWARD ERROR", e.message);
+  }
+});
 
-window.manageSubmission = function(action) {
-    const id = document.getElementById('manageId')?.value.trim();
-    if (!id) return window.logToConsole('subConsole', 'Error: Submission ID required.', 'error');
-    const u256Id = BigInt(id);
+document.getElementById("btnSaveRiskConfig")?.addEventListener("click", async () => {
+  try {
+    await sendContractWrite("configure_domain_risk", [
+      document.getElementById("govDomain").value,
+      document.getElementById("chkStrict").checked,
+      document.getElementById("chkIgnoreMinor").checked,
+    ]);
+  } catch (e) {
+    logOutput("RISK CONFIG ERROR", e.message);
+  }
+});
 
-    if (action === 'reload') {
-        window.executeTx('reload_submission', [u256Id], 'subConsole');
-    } else if (action === 'revoke') {
-        window.executeTx('revoke_submission', [u256Id], 'subConsole');
-    } else if (action === 'archive') {
-        const cause = document.getElementById('archiveCause')?.value.trim();
-        if (!cause) return window.logToConsole('subConsole', 'Error: Archive cause required.', 'error');
-        window.executeTx('archive_record', [u256Id, cause], 'subConsole');
-    }
-};
+document.getElementById("btnOverride")?.addEventListener("click", async () => {
+  try {
+    await sendContractWrite("override_judgement", [
+      Number(document.getElementById("ovrUid").value),
+      document.getElementById("ovrOutcome").value,
+      document.getElementById("ovrRationale").value,
+    ]);
+  } catch (e) {
+    logOutput("OVERRIDE ERROR", e.message);
+  }
+});
 
-// --- Panel 3: AI & Execution Handlers ---
-window.evaluateSubmission = function() {
-    const id = document.getElementById('evalId')?.value.trim();
-    if (!id) return window.logToConsole('evalConsole', 'Error: Submission ID required.', 'error');
-    window.executeTx('evaluate_submission', [BigInt(id)], 'evalConsole');
-};
+document.getElementById("btnArchive")?.addEventListener("click", async () => {
+  try {
+    await sendContractWrite("archive_record", [
+      Number(document.getElementById("ovrUid").value),
+      document.getElementById("ovrRationale").value,
+    ]);
+  } catch (e) {
+    logOutput("ARCHIVE ERROR", e.message);
+  }
+});
 
-window.executeBatchEval = function() {
-    const input = document.getElementById('batchIds')?.value.trim();
-    if (!input) return window.logToConsole('evalConsole', 'Error: Provide IDs.', 'error');
-    const arr = input.split(',').map(s => BigInt(s.trim())).filter(n => !isNaN(Number(n)));
-    window.executeTx('evaluate_batch', [arr], 'evalConsole');
-};
+document.getElementById("btnInspectSub")?.addEventListener("click", async () => {
+  try {
+    const res = await callContractView("get_submission", [Number(document.getElementById("inspUid").value)]);
+    lastAuditReport = res;
+    logOutput("SUBMISSION RECORD", res);
+  } catch (e) {
+    logOutput("INSPECT ERROR", e.message);
+  }
+});
 
-window.overrideJudgement = function() {
-    const id = document.getElementById('overId')?.value.trim();
-    const outcome = document.getElementById('overOutcome')?.value;
-    const rationale = document.getElementById('overRationale')?.value.trim();
-    if (!id || !rationale) return window.logToConsole('evalConsole', 'Error: ID and Rationale required.', 'error');
-    window.executeTx('override_judgement', [BigInt(id), outcome, rationale], 'evalConsole');
-};
+document.getElementById("btnInspectContent")?.addEventListener("click", async () => {
+  try {
+    const res = await callContractView("get_content", [Number(document.getElementById("inspUid").value)]);
+    logOutput("SUBMISSION CONTENT", res);
+  } catch (e) {
+    logOutput("INSPECT ERROR", e.message);
+  }
+});
 
-window.triggerHook = function() {
-    const id = document.getElementById('hookId')?.value.trim();
-    if (!id) return window.logToConsole('evalConsole', 'Error: Submission ID required.', 'error');
-    window.executeTx('trigger_hook', [BigInt(id)], 'evalConsole');
-};
+document.getElementById("btnInspectJudge")?.addEventListener("click", async () => {
+  try {
+    const res = await callContractView("get_judgement", [Number(document.getElementById("inspUid").value)]);
+    lastAuditReport = res;
+    logOutput("AI JUDGEMENT REPORT", res);
+  } catch (e) {
+    logOutput("INSPECT ERROR", e.message);
+  }
+});
 
-// --- Panel 4: Read & Query Views ---
-window.fetchSubmissionData = function(method) {
-    const id = document.getElementById('viewId')?.value.trim();
-    if (!id) return window.logToConsole('viewConsole', 'Error: Submission ID required.', 'error');
-    window.readData(method, [parseInt(id, 10)], 'viewConsole');
-};
-
-window.getIssue = function() {
-    const id = document.getElementById('viewId')?.value.trim();
-    const idx = document.getElementById('issueIdx')?.value.trim();
-    if (!id || idx === "") return window.logToConsole('viewConsole', 'Error: Submission ID and Issue Index required.', 'error');
-    window.readData('get_issue', [parseInt(id, 10), parseInt(idx, 10)], 'viewConsole');
-};
-
-window.getDomainState = function() {
-    const actor = document.getElementById('dsActor')?.value.trim();
-    const domain = document.getElementById('dsDomain')?.value.trim();
-    if (!actor || !domain) return window.logToConsole('viewConsole', 'Error: Actor and Domain required.', 'error');
-    window.readData('get_domain_state', [actor, domain], 'viewConsole');
-};
-
-window.getEvent = function() {
-    const idx = document.getElementById('eventIdx')?.value.trim();
-    window.readData('get_event', [parseInt(idx || "0", 10)], 'viewConsole');
-};
-
-window.getStats = function() {
-    window.readData('stats', [], 'viewConsole');
-};
+document.getElementById("btnInspectDomain")?.addEventListener("click", async () => {
+  try {
+    const res = await callContractView("get_domain_state", [
+      connectedAccount || "0x0000000000000000000000000000000000000000",
+      document.getElementById("inspDomain").value,
+    ]);
+    logOutput("DOMAIN LANDSCAPE STATE", res);
+  } catch (e) {
+    logOutput("INSPECT ERROR", e.message);
+  }
+});
