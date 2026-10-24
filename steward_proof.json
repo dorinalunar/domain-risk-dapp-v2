@@ -1,0 +1,56 @@
+{
+  "checkType": "REPRODUCIBLE_SUBMIT_AND_FINALIZED_READBACK",
+  "verified": true,
+  "timestamp": "2026-10-24T20:27:29.438Z",
+  "contractAddress": "0xBfD7843AF81097Faec3Ce05A86B7E106BB78024e",
+  "chainId": 61999,
+  "signer": "0x38409cca5f5ca70f3fe189638a87862318b478dd",
+  "transaction": {
+    "method": "submit_agreement",
+    "txHash": "0x3e27bae7f05838691beaf6c0ac566a523abe01c21b28ed47a47eea31f9a2fab6",
+    "finalizedStatus": 7
+  },
+  "submissionUid": "1",
+  "readback": {
+    "beforeStats": {
+      "global_tracker_id": "1",
+      "event_counter": "3",
+      "count_live": "0",
+      "count_denied": "0",
+      "count_manual": "0",
+      "count_archived": "0"
+    },
+    "afterStats": {
+      "global_tracker_id": "2",
+      "event_counter": "4",
+      "count_live": "0",
+      "count_denied": "0",
+      "count_manual": "0",
+      "count_archived": "0"
+    },
+    "get_submission": {
+      "uid": "1",
+      "actor": "0x38409cCa5f5ca70F3fe189638a87862318b478dd",
+      "domain": "defi.treasury",
+      "state": "QUEUED",
+      "outcome": "NONE",
+      "rationale": "",
+      "sync_version": 0,
+      "sync_keys": [],
+      "issues_count": 0,
+      "hook_addr": "0x0000000000000000000000000000000000000000",
+      "hook_triggered": false
+    },
+    "get_content": {
+      "body_text": "The DAO hereby allocates 50,000 USDC from the main treasury for the Q4 marketing campaign. This allocation is non-exclusive and subject to standard quarterly auditing. No unilateral authority is granted. All unspent funds must be returned by December 31st.",
+      "bg_info": ""
+    }
+  },
+  "invariants": {
+    "uidMatches": true,
+    "domainMatches": true,
+    "stateIsQueued": true,
+    "bodyMatches": true,
+    "bgMatches": true
+  }
+}
